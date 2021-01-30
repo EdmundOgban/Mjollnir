@@ -45,8 +45,8 @@ class IRCContext:
         msg = commands.ctcp(to, ctcpname, text)
         self.responses.append(msg)
 
-    def ctcpreply(self, to, ctcpname, text=None):
-        msg = commands.ctcpreply(to, ctcpname, text)
+    def ctcpreply(self, ctcpname, text=None):
+        msg = commands.ctcpreply(self.incoming.nick, ctcpname, text)
         self.responses.append(msg)
 
     def raw(self, cmd, args):
