@@ -75,7 +75,7 @@ class Builtins:
             irc.reply(f"{text} is {grades} in {channel}")
 
     def isin(self, irc, msg, nick):
-        if not irc.in_channel():
+        if not irc.in_channel() or not nick:
             return
 
         channel = self.network.channels[msg.recipient]
