@@ -11,7 +11,9 @@ log = logging.getLogger("mjollnir")
 
 async def numeric_001(network, msg):
     me = network.identity["nick"]
-    await utils.send(network, commands.whois(me))
+    modes = network.identity.get("modes")
+    if modes:
+        await utils.send(network, commands.mode(me, modes))
 
 
 async def numeric_005(network, msg):

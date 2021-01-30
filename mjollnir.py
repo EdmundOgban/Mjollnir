@@ -132,7 +132,7 @@ async def main():
         ],
         "realname": "Mjollnir",
         "autojoin": [("#supybot", "mannaccia")], #, "#unity"],
-        "modes"   : "+ixw"
+        "modes"   : "+ixws"
     }
 
     identity2 = identity.copy()
