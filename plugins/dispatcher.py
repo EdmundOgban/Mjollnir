@@ -115,7 +115,7 @@ class Plugins:
         if len(cmd) > 1:
             cmd, args = cmd
         else:
-            (cmd,), args = cmd, []
+            (cmd,), args = cmd, ''
 
         cmd = validate_command(cmd)
         if cmd is False:
