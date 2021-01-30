@@ -51,16 +51,11 @@ class Builtins:
     def echo(self, irc, msg, text):
         irc.reply(text)
 
-    def say(self, irc, msg, text):
-        if not text:
-            return
+    def act(self, irc, msg, text):
+        irc.reply_action(text)
 
-        try:
-            to, text = text.split(" ", 1)
-        except ValueError:
-            return
-
-        irc.msg(to, text)
+    def reverse(self, irc, msg, text):
+        irc.reply(text[::-1])
 
     def ratto(self, irc, msg, text):
         irc.reply(advratto(text))
