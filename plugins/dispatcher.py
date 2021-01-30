@@ -129,22 +129,29 @@ class Plugins:
         except ValueError as e:
             self.ctx.msg(self.ctx.to(msg), f"Error: {str(e)}")
         else:
-            responses = []
-            print("evaluating", cmds)
-            await self._evaluate(methods, msg, cmds, responses)
-            print("responses", responses)
+            await self._evaluate(methods, msg, cmds)
 
-    async def _evaluate(self, methods, msg, cmds, responses):
+    def _expand(self, cmds):
+        longest = max((len(cmd) if isinstance(cmd, list) else 1) for cmd in cmds)
+        out = [[] for _ in range(longest)]
+
+        for cmd in cmds:
+            if isinstance(cmd, list):
+                for idx, token in enumerate(cmd):
+                    out[idx].append(token)
+            else:
+                for idx in range(longest):
+                    out[idx].append(cmd)
+
+        return ["".join(o) for o in out]
+
+    async def _evaluate(self, methods, msg, cmds):
         for idx, cmd in enumerate(cmds):
             if isinstance(cmd, list):
-                print(f"  for {cmds}")
-                ret = await self._evaluate(methods, msg, cmd, responses)
-                cmds[idx] = ret
+                cmds[idx] = await self._evaluate(methods, msg, cmd)
                 self.ctx.reset_responses()
 
-        print("executing", cmds)
-        for cmd in cmds:
-            print(f"  spawning {cmd}")
-            await self._execute_command(methods, msg, cmd)
-            ret = [(msg.text if hasattr(msg, "text") else msg) for msg in self.ctx.responses]
-            return ret
+        for cmd in self._expand(cmds):
+            await self._execute_command(methods, msg, "".join(cmd))
+
+        return [msg.text for msg in self.ctx.responses if msg.text]
