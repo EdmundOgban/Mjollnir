@@ -13,15 +13,20 @@ class IRCContext:
         self.network = network
         self.reset_responses()
 
-    def _reply(self, text, *, action=False):
+    def _reply(self, text, *, action=False, notice=False):
         if action:
             factory = commands.action
+        elif notice:
+            factory = commands.notice
         else:
             factory = commands.msg
 
+        if not isinstance(text, (bytearray, bytes)):
+            text = str(text)
+
         recipient = self.to(self.incoming)
         msg = factory(recipient, text)
-        self.responses.append(msg)
+        self._enqueue(msg)
 
     def reply(self, text):
         self._reply(text)
@@ -29,29 +34,32 @@ class IRCContext:
     def reply_action(self, text):
         self._reply(text, action=True)
 
+    def reply_notice(self, text):
+        self._reply(text, notice=True)
+
     def msg(self, to, text):
         msg = commands.msg(to, text)
-        self.responses.append(msg)
+        self._enqueue(msg)
 
     def action(self, to, text):
-        msg = commands.msg(to, text)
-        self.responses.append(msg)
+        msg = commands.action(to, text)
+        self._enqueue(msg)
 
     def notice(self, to, text):
         msg = commands.notice(to, text)
-        self.responses.append(msg)
+        self._enqueue(msg)
 
     def ctcp(self, to, ctcpname, text=None):
         msg = commands.ctcp(to, ctcpname, text)
-        self.responses.append(msg)
+        self._enqueue(msg)
 
     def ctcpreply(self, ctcpname, text=None):
         msg = commands.ctcpreply(self.incoming.nick, ctcpname, text)
-        self.responses.append(msg)
+        self._enqueue(msg)
 
     def raw(self, cmd, args):
         msg = IRCMsg(type=MsgType.SERVERCMD, command=cmd, args=args)
-        self.responses.append(msg)
+        self._enqueue(msg)
 
     def nick_tolower(self, nick):
         casing = self.network.capabilities["CASEMAPPING"]
@@ -65,7 +73,14 @@ class IRCContext:
         else:
             raise ValueError(f"Invalid CASEMAPPING '{casing}'")
 
-    def nickcmp(self, a, b):
+    def nick_isin(self, nick, channel):
+        for other in channel:
+            if self.nick_cmp(nick, other):
+                return True
+
+        return False
+
+    def nick_cmp(self, a, b):
         if isinstance(a, Nick):
             a = a.name
         elif not isinstance(a, str):
@@ -94,3 +109,10 @@ class IRCContext:
 
     def reset_responses(self):
         self.responses = []
+
+    def _enqueue(self, msg):
+        identity = self.network.identity
+        msg.nick = identity["nick"]
+        msg.ident = identity["ident"]
+        msg.hostname = self.network.hostname
+        self.responses.append(msg)
