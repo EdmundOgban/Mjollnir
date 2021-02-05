@@ -101,7 +101,8 @@ class Builtins:
 
     def dump(self, irc, msg, text):
         caps = ", ".join(f'{k}={v}' for k, v in self.network.capabilities.items())
-        irc.reply(f"{self.network.name}: +{''.join(self.network.ownmodes)} {caps}")
+        irc.reply(f"{self.network.name}: {self.network.identity['nick']}!{self.network.identity['ident']}@{self.network.hostname} +{''.join(self.network.ownmodes)} MAXMODES:{self.network.maxmodes} {self.network.targmax}")
+        irc.reply(caps)
         if irc.in_channel():
             channel = self.network.channels[msg.recipient]
             modes = f"+{''.join(channel.modes.keys())}"
