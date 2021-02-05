@@ -136,6 +136,7 @@ async def numeric_353(network, msg):
         network.channels[channel].nicks[nk] = nick
 
 
+# RPL_BANLIST
 async def numeric_367(network, msg):
     channel = msg.args[-4].lower()
     target, setby, timestamp = msg.args[-3:]
