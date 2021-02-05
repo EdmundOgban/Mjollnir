@@ -99,6 +99,14 @@ class Mjollnir:
         driver = trio_driver.Driver(identity, rsendq, wsendq)
         self.networks[name] = Network(identity, driver)
 
+    async def _connect(self, network):
+        await network._driver.connect()
+        await network._driver.perform()
+
+    async def _disconnect(self, network, reason=""):
+        await network._driver.disconnect(reason)
+        network.identified = False
+
     def spawn_network(self, network):
         bookkeeper = Bookkeeper(network)
         pluginmanager = dispatcher.Plugins(network)
@@ -108,7 +116,7 @@ class Mjollnir:
         messagepump.add_sink(pluginmanager.dispatch, [MsgType.ALL])
         messagepump.add_sink(partial(console_print, network.identity), [MsgType.ALL])
         self.nursery.start_soon(network._driver.spool)
-        self.nursery.start_soon(network._driver.connect)
+        self.nursery.start_soon(self._connect, network)
         self.nursery.start_soon(messagepump.run)
         if network.name == "Azzurra":
             run_sync = partial(trio.to_thread.run_sync, cancellable=True)
@@ -121,7 +129,7 @@ class Mjollnir:
                     self.spawn_network(network)
         except KeyboardInterrupt:
             for network in self.networks.values():
-                await network._driver.disconnect("KeyboardInterrupt")
+                await self._disconnect(network, "KeyboardInterrupt")
         finally:
             self.nursery = None
 
