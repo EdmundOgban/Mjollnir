@@ -143,7 +143,7 @@ async def numeric_367(network, msg):
     network.channels[channel].bans[target] = (setby, timestamp)
 
 
-async def numeric_376(network, msg):
+async def _autojoin(network, msg):
     channels = network.identity["autojoin"]
     nopw = []
     withpw = []
