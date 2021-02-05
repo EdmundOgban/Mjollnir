@@ -61,19 +61,23 @@ class Builtins:
     def ratto(self, irc, msg, text):
         irc.reply(advratto(text))
 
-    def grade(self, irc, msg, text):
-        if not irc.in_channel():
-            return
+    def more(self, irc, msg, text):
+        Env().cleanup()
+        recipient = irc.to(msg)
+        mores = Env().mores[recipient][msg.identhost]
+        if mores is not None:
+            mores_cnt = len(mores)
+            if mores_cnt > 0:
+                more = mores.pop()
+                text = more.text.decode()
+                cnt = mores_cnt - 1
+                if cnt > 0:
+                    text += utils.morefmt(cnt)
 
-        strings = {"o": "an operator", "h": "a half-operator", "v": "a voice"}
-        channel = self.network.channels[msg.recipient]
-        if text in channel:
-            usergrades = channel.nicks[text].grade
-            grades = andify([strings.get(grade, f"+{grade}") for grade in usergrades])
-            if not grades:
-                grades = "a regular user"
+                irc.reply(text)
+            else:
+                irc.reply("No more messages.")
 
-            irc.reply(f"{text} is {grades} in {channel}")
 
     def isin(self, irc, msg, nick):
         if not irc.in_channel() or not nick:
