@@ -1,4 +1,6 @@
 import logging
+import random
+import string
 from collections import defaultdict
 
 from .enums import MsgType
@@ -57,6 +59,13 @@ class Network:
 
     def __contains__(self, other):
         return other == self.name
+
+    def _nicknames(self):
+        nick = self.identity["altnick"]
+        while True:
+            yield nick
+            nick = "{}{:02}".format("".join(random.sample(string.ascii_letters, 7)),
+                random.randint(0, 99))
 
 
 class Channel:
