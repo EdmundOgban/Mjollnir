@@ -85,9 +85,9 @@ class Builtins:
 
         channel = self.network.channels[msg.recipient]
         me = self.network.identity["nick"]
-        if me == nick:
+        if irc.nick_cmp(me, nick):
             irc.reply("dah, I'm here ...")
-        elif nick in channel:
+        elif irc.nick_isin(nick, channel):
             irc.reply(f"{nick} is right there")
             irc.reply_action(f"points at {nick}")
         else:
