@@ -15,7 +15,7 @@ from .plugins import dispatcher
 from . import vt100
 
 locale.setlocale(locale.LC_ALL, '')
-logging.basicConfig(format="%(asctime)s %(name)s %(levelname)s %(message)s",
+logging.basicConfig(format="%(asctime)s %(levelname)8s %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S", level=logging.DEBUG)
 log = logging.getLogger("mjollnir")
 
