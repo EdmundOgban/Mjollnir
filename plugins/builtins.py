@@ -119,6 +119,8 @@ class Builtins:
             reply = "Mjollnir \\o/"
         elif ctcp == "DCC":
             reply = "Mjollnir doesn't support DCCs... yet!"
+        elif ctcp == "SOURCE":
+            reply = "https://github.com/EdmundOgban/Mjollnir"
 
         if reply:
             irc.ctcpreply(ctcp, reply)
