@@ -3,7 +3,9 @@ from random import random, choice, randint
 
 import trio
 
-from ..core import utils as utils
+from ..core import utils
+from ..core.utils import utf8utils
+from ..core.utils.environment import Env
 
 log = logging.getLogger("mjollnir")
 
@@ -29,17 +31,6 @@ def advratto(size):
     return ratto
 
 
-def andify(L):
-    if not L:
-        return ""
-    elif len(L) == 1:
-        return L[0]
-    elif len(L) == 2:
-        return " and ".join(L)
-    else:
-        return ", ".join(L[:-1]) + f", and {L[-1]}"
-
-
 class Builtins:
     def __init__(self, network):
         self.network = network
@@ -56,6 +47,16 @@ class Builtins:
 
     def reverse(self, irc, msg, text):
         irc.reply(text[::-1])
+
+    def unireverse(self, irc, msg, text):
+        unisplit = utf8utils.split(text)
+        irc.reply("".join(reversed(unisplit)))
+
+    def len(self, irc, msg, text):
+        irc.reply(len(text))
+
+    def unilen(self, irc, msg, text):
+        irc.reply(len(utf8utils.split(text)))
 
     def ratto(self, irc, msg, text):
         irc.reply(advratto(text))
