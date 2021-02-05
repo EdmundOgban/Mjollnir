@@ -41,12 +41,17 @@ class Network:
     def __init__(self, identity, driver):
         self.identity = identity
         self._driver = driver
+        self.identified = False
+        self.nickgen = self._nicknames()
+        self.hostname = ""
         self.ownmodes = set()
         self.chanmodes = set()
-        self.excepts_mode = "e"
+        self.maxmodes = -1
+        self.excepts_mode = ""
         self.prefix_modes = []
         self.prefix_literals = []
         self.capabilities = {}
+        self.targmax = {}
         self.channels = {}
 
     @property
@@ -92,9 +97,6 @@ class Channel:
             return self.name.lower() == other.name.lower()
         else:
             return False
-
-    def __contains__(self, name):
-        return name in self.nicks
 
     def __str__(self):
         return self.name
@@ -175,6 +177,30 @@ class IRCMsg:
             return f"{self.nick}"
         else:
             return f"{self.nick}!{self.ident}@{self.hostname}"
+
+    @property
+    def identhost(self):
+        if self.ident is None and self.hostname is None:
+            return
+
+        return f"{self.ident}@{self.hostname}"
+
+    @property
+    def text(self):
+        return self._text
+
+    @text.setter
+    def text(self, text):
+        self.args[-1] = text
+        self._text = text
+
+    def __iadd__(self, other):
+        if isinstance(other, IRCMsg):
+            other = other.text
+
+        self.args[-1] = self.args[-1] + other
+        self.text = self.text + other
+        return self
 
     def __repr__(self):
         return ("<IRCMsg object at 0x{:X}, sender={}, recipient={}, type={},"
