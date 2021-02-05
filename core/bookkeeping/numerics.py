@@ -58,10 +58,12 @@ ISUPPORT = {
 
 # RPL_WELCOME
 async def numeric_001(network, msg):
+    network.identified = True
     me = network.identity["nick"]
     modes = network.identity.get("modes")
     if modes:
         await utils.send(network, commands.mode(me, modes))
+        await utils.send(network, commands.whois(me))
 
 
 async def numeric_005(network, msg):
@@ -86,6 +88,13 @@ async def numeric_005(network, msg):
             f(network, v, remove=remove)
 
 
+# RPL_WHOISUSER
+async def numeric_311(network, msg):
+    network.identity["ident"] = msg.args[2]
+    network.hostname = msg.args[3]
+
+
+# RPL_CHANNELMODEIS
 async def numeric_324(network, msg):
     await clientcmds.cmode(network, msg.sender, msg.args[1:])
 
@@ -148,3 +157,23 @@ async def numeric_376(network, msg):
 
     if withpw:
         await utils.send(network, commands.joins(withpw, passwd))
+
+
+# RPL_ENDOFMOTD
+async def numeric_376(network, msg):
+    await _autojoin(network, msg)
+
+
+# RPL_NOMOTD
+async def numeric_422(network, msg):
+    await _autojoin(network, msg)
+
+
+# ERR_NICKNAMEINUSE
+async def numeric_433(network, msg):
+    if not network.identified:
+        nick = network.identity["nick"]
+        newnick = next(network.nickgen)
+        network.identity["nick"] = newnick
+        log.info(f"@{network.name} Nickname {nick} is taken, trying {newnick}")
+        await utils.send(network, commands.nick(newnick))
