@@ -12,6 +12,7 @@ from .core.mixins import MessagePump, Network, IRCMsg
 from .core.drivers import trio_driver
 from .core.enums import MsgType
 from .plugins import dispatcher
+from . import vt100
 
 locale.setlocale(locale.LC_ALL, '')
 logging.basicConfig(format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -37,46 +38,50 @@ def console_reader(wsendq):
 async def console_print(identity, msg):
     network = identity["network"]
     recipient, *args = msg.args
+    text = vt100.colorize(msg.args[-1])
 
-    if msg.command == "372":
-        log.info(f"[MOTD@{network}] {msg.args[-1]}")
+    if msg.command == "001":
+        log.info(f"@{network} {msg.args[-1]}")
+    elif msg.command == "372":
+        log.info(f"@{network} [MOTD] {text}")
     elif msg.command == "NOTICE":
-        pfx = f"{msg.nick}@{network}->{recipient}"
-
         if msg.type is MsgType.CTCPREPLY:
-            log.info(f"CTCP Reply:{pfx} {' '.join(args)}")
+            log.info(f"@{network} CTCPReply {msg.nick} {msg.ctcpname} {text}")
         else:
-            log.info(f"Notice:{pfx} {' '.join(args)}")
+            log.info(f"@{network} -{msg.nick}->{msg.recipient}- {text}")
     elif msg.command == "PRIVMSG":
         if msg.type is MsgType.CTCP:
-            log.info(f"CTCP:<{msg.nick}->{msg.recipient}@{network}> {' '.join(args)}")
+            log.info(f"@{network} CTCP {msg.nick}->{msg.recipient} {msg.ctcpname} {text}")
+        elif msg.type is MsgType.ACTION:
+            log.info(f"@{network} * {msg.nick}->{msg.recipient} {text}")
         else:
-            log.info(f"<{msg.nick}->{msg.recipient}@{network}> {' '.join(args)}")
+            log.info(f"@{network} <{msg.nick}->{msg.recipient}> {text}")
     elif msg.command == "JOIN":
         channel = msg.args[0]
         if msg.nick == identity["nick"]:
-            log.info(f"Joining {channel}@{network}")
+            log.info(f"@{network} Joining {channel}")
         else:
-            log.info(f"{msg.nick} joined {channel}@{network}")
+            log.info(f"@{network} {msg.nick} joined {channel}")
     elif msg.command == "PART":
         try:
             channel, reason = msg.args
         except ValueError:
-            channel, reason = msg.args[0], ""
+            channel, reason = msg.args[0], None
 
         if msg.nick == identity["nick"]:
-            log.info(f"Leaving {channel}@{network} ({reason})")
+            log.info(f"@{network} Leaving {channel}" + f" ({reason})" if reason else "")
         else:
-            log.info(f"{msg.nick} left {channel}@{network} ({reason})")
+            log.info(f"@{network} {msg.nick} left {channel}" + f" ({reason})" if reason else "")
+    elif msg.command == "QUIT":
+        log.info(f"@{network} {msg.nick} has quit IRC ({msg.args[-1]})")
     elif msg.command == "MODE":
         if msg.nick == recipient:
-            pfx = f"{msg.nick}@{network}"
+            pfx = msg.nick
         else:
-            pfx = f"{msg.nick}->{recipient}@{network}"
+            pfx = f"{msg.nick}->{recipient}"
 
-        log.info(f"{pfx} sets mode: {' '.join(args)}")
-    else:
-    #elif msg.type is not MsgType.NUMERIC and msg.command != "PING":
+        log.info(f"@{network} {pfx} sets mode: {' '.join(args)}")
+    elif msg.command != "PING" and msg.type != MsgType.NUMERIC:
         log.debug(f"@{identity['network']} {msg}")
 
 
