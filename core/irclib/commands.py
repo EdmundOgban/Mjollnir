@@ -21,15 +21,18 @@ def identify(identity):
 
 
 def msg(to, text):
-    return IRCMsg(type=MsgType.REGULAR, recipient=to, args=[to, text], text=text)
-
-
-def action(to, text):
-    return IRCMsg(type=MsgType.CTCP, ctcp="ACTION", recipient=to, args=[to, text], text=text)
+    return IRCMsg(type=MsgType.REGULAR, command="PRIVMSG", recipient=to,
+        args=[to, text], text=text)
 
 
 def notice(to, text):
-    return IRCMsg(type=MsgType.NOTICE, recipient=to, args=[to, text], text=text)
+    return IRCMsg(type=MsgType.NOTICE, command="NOTICE", recipient=to,
+        args=[to, text], text=text)
+
+
+def action(to, text):
+    return IRCMsg(type=MsgType.CTCP, command="PRIVMSG", ctcp="ACTION",
+        recipient=to, args=[to, text], text=text)
 
 
 def ctcp(to, ctcpname, text=None):
@@ -37,7 +40,8 @@ def ctcp(to, ctcpname, text=None):
     if text:
         args.append(text)
 
-    return IRCMsg(type=MsgType.CTCP, ctcp=ctcpname, recipient=to, args=args)
+    return IRCMsg(type=MsgType.CTCP, command="PRIVMSG", ctcp=ctcpname,
+        recipient=to, args=args)
 
 
 def ctcpreply(to, ctcpname, text=None):
@@ -45,7 +49,8 @@ def ctcpreply(to, ctcpname, text=None):
     if text:
         args.append(text)
 
-    return IRCMsg(type=MsgType.CTCPREPLY, ctcp=ctcpname, recipient=to, args=args)
+    return IRCMsg(type=MsgType.CTCPREPLY, command="NOTICE",
+        ctcp=ctcpname, recipient=to, args=args)
 
 
 def join(channel, key=None):
