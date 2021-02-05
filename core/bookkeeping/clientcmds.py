@@ -89,6 +89,9 @@ async def nick(network, msg):
     for channel in network.channels.values():
         nick = channel.nicks.get(msg.nick)
         if nick is not None:
+            if msg.nick == network.identity["nick"]:
+                network.identity["nick"] = newnick
+
             channel.nicks.pop(msg.nick)
             nick.rename(newnick)
             channel.nicks[newnick] = nick
