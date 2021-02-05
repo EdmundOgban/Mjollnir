@@ -66,6 +66,7 @@ async def numeric_001(network, msg):
         await utils.send(network, commands.whois(me))
 
 
+# RPL_ISUPPORT
 async def numeric_005(network, msg):
     for arg in msg.args[1:-1]:
         k, v = "", None
@@ -99,12 +100,14 @@ async def numeric_324(network, msg):
     await clientcmds.cmode(network, msg.sender, msg.args[1:])
 
 
+# RPL_TOPIC
 async def numeric_332(network, msg):
     channel, topictext = msg.args[-2:]
     channel = channel.lower()
     network.channels[channel].topic["text"] = topictext
 
 
+# RPL_TOPICWHOTIME
 async def numeric_333(network, msg):
     channel, setby, timestamp = msg.args[-3:]
     channel = channel.lower()
@@ -113,6 +116,7 @@ async def numeric_333(network, msg):
     topic["timestamp"] = timestamp
 
 
+# RPL_WHOREPLY
 async def numeric_353(network, msg):
     channel, nicks = msg.args[-2:]
     channel = channel.lower()
