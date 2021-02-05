@@ -130,10 +130,26 @@ def _join_args(args):
 
     return " ".join(L) or None
 
+# FIXME
+def _join_args_bytes(args):
+    L = []
+    space_found = False
+    for arg in args:
+        if isinstance(arg, str):
+            arg = arg.encode()
+
+        if not space_found and b" " in arg:
+            L.append(b":" + arg)
+            space_found = True
+        else:
+            L.append(arg)
+
+    return b" ".join(L) or None
+
 
 class IRCMsg:
     def __init__(self, nick=None, ident=None, hostname=None, recipient=None,
-        type=None, ctcp=None, command=None, text='', args=None):
+        type=None, ctcp=None, command=None, args=None, text='', encoded=False):
         self.nick = nick
         self.ident = ident
         self.hostname = hostname
@@ -141,8 +157,14 @@ class IRCMsg:
         self.type = type
         self.ctcpname = ctcp
         self.command = command
-        self.text = text
         self.args = args or []
+        self._text = text
+        self.encoded = encoded
+
+    def copy(self):
+        return IRCMsg(self.nick, self.ident, self.hostname, self.recipient,
+            self.type, self.ctcpname, self.command, self.args.copy(),
+            self.text, self.encoded)
 
     @property
     def sender(self):
@@ -196,3 +218,42 @@ class IRCMsg:
             s = f":{self.sender} {self.command} {args}"
 
         return s
+
+    # FIXME
+    def __bytes__(self):
+        s = bytearray()
+
+        if self.type in (MsgType.ACTION, MsgType.CTCP, MsgType.CTCPREPLY):
+            if self.type is MsgType.ACTION:
+                ctcpname = "ACTION"
+            else:
+                ctcpname = self.ctcpname
+
+            if len(self.args) > 1:
+                ctcpbody = _ctcp(ctcpname, " ".join(self.args[1:]))
+            else:
+                ctcpbody = _ctcp(ctcpname)
+
+            args = [self.args[0].encode(), ctcpbody.encode()]
+        else:
+            args = self.args
+
+        args = _join_args_bytes(args)
+
+        if self.type in (MsgType.REGULAR, MsgType.ACTION, MsgType.CTCP):
+            s.extend(b"PRIVMSG ")
+            s.extend(args)
+        elif self.type in (MsgType.NOTICE, MsgType.CTCPREPLY):
+            s.extend(b"NOTICE ")
+            s.extend(args)
+        elif self.type is MsgType.NUMERIC:
+            s.extend(self.command.encode())
+            s.extend(args)
+        elif self.type is MsgType.SERVERCMD:
+            s.extend(self.command)
+            if args:
+                s.extend(args)
+        elif self.type is MsgType.CLIENTCMD:
+            s = f":{self.sender} {self.command} {args}"
+
+        return bytes(s)
