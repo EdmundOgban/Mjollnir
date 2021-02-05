@@ -1,15 +1,18 @@
 import inspect
 import string
 import logging
+from random import randint
 
 import trio
 
+from ..core import utils
+from ..core.irclib import commands
 from ..core.irclib.context import IRCContext
 from ..core.enums import MsgType
 from ..core.mixins import IRCMsg, Nick
-from ..core import utils
 from .builtins import Builtins
 from .nested import NestedScanner
+from .spooler import Spooler
 
 BOTCMD_PREFIX = ")"
 VALID_CMDCHARS = string.ascii_letters + string.digits + "_"
@@ -56,6 +59,8 @@ class Plugins:
         self.pluginlist = {"Builtins": Builtins(network)}
         self.ctx = IRCContext(network)
         self.nested = NestedScanner()
+        self.spooler = Spooler(self.ctx, chunksize=512, targmax=network.targmax,
+            maxmodes=network.maxmodes)
 
     def load(self, plugin):
         pass
@@ -69,28 +74,36 @@ class Plugins:
     async def dispatch(self, msg):
         self.ctx.set_message(msg)
 
-        for name, inst in self.pluginlist.items():
-            await self._dispatch_event(inst, msg)
-            await self.spool(self.ctx.responses)
-            self.ctx.reset_responses()
+        with trio.move_on_after(15):
+            async with trio.open_nursery() as nursery:
+                for name, inst in self.pluginlist.items():
+                    nursery.start_soon(self._dispatch, inst, msg)
 
-    async def spool(self, responses):
-        for response in responses:
-            log.debug(response)
-            await utils.send(self.network, response)
+        for message in self.spooler.spool():
+            log.debug(message)
+            await utils.send(self.network, message)
+
+        self.ctx.reset_responses()
+
+    async def _dispatch(self, inst, msg):
+        try:
+            await self._dispatch_event(inst, msg)
+        except Exception as e:
+            err = commands.msg(self.ctx.to(msg), f"Error: {str(e)}")
+            await utils.send(self.network, err)
 
     async def _dispatch_event(self, inst, msg):
         msgtype = msg.type
         text = msg.text
-        # dispatched = False
+        dispatched = False
         methods = {name: method for name, method in inspect.getmembers(inst, inspect.ismethod)}
 
         if msgtype is MsgType.REGULAR and text.startswith(BOTCMD_PREFIX):
             nested_pfx = BOTCMD_PREFIX * 2
             if text.startswith(nested_pfx):
-                await self._execute_nested(methods, msg, text[len(nested_pfx):])
+                dispatched = await self._execute_nested(methods, msg, text[len(nested_pfx):])
             else:
-                await self._execute_command(methods, msg, text[len(BOTCMD_PREFIX):])
+                dispatched = await self._execute_command(methods, msg, text[len(BOTCMD_PREFIX):])
 
         if msgtype is MsgType.CTCP:
             method = "_on_ctcp"
@@ -101,11 +114,13 @@ class Plugins:
         else:
             method = f"_on_{msg.command.lower()}"
 
-        await _spawn(self.ctx, methods, msg, method, text)
+        dispatched = any([
+            dispatched,
+            await _spawn(self.ctx, methods, msg, method, text)
+        ])
 
-        # TODO: check if command has executed
-        # if not dispatched:
-        #     await _spawn(ctx, methods, msg, "_uncatched", text)
+        if not dispatched:
+            await _spawn(self.ctx, methods, msg, "_uncatched", text)
 
         await _spawn(self.ctx, methods, msg, "_catchall", text)
 
@@ -121,7 +136,7 @@ class Plugins:
         if cmd is False:
             return False
 
-        await _spawn(self.ctx, methods, msg, cmd, args)
+        return await _spawn(self.ctx, methods, msg, cmd.lower(), args)
 
     async def _execute_nested(self, methods, msg, text):
         try:
@@ -129,7 +144,8 @@ class Plugins:
         except ValueError as e:
             self.ctx.msg(self.ctx.to(msg), f"Error: {str(e)}")
         else:
-            await self._evaluate(methods, msg, cmds)
+            ret =  await self._evaluate(methods, msg, cmds)
+            return True if ret else False
 
     def _expand(self, cmds):
         longest = max((len(cmd) if isinstance(cmd, list) else 1) for cmd in cmds)
@@ -143,7 +159,7 @@ class Plugins:
                 for idx in range(longest):
                     out[idx].append(cmd)
 
-        return ["".join(o) for o in out]
+        return out
 
     async def _evaluate(self, methods, msg, cmds):
         for idx, cmd in enumerate(cmds):
