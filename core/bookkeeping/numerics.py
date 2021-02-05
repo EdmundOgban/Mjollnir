@@ -9,6 +9,54 @@ from . import clientcmds
 log = logging.getLogger("mjollnir")
 
 
+def isupport_chanmodes(network, v, remove):
+    try:
+        A, B, C, D = v.split(",", 3)
+    except ValueError:
+        log.warning(f"!!! Network {network.name} is not declaring CHANMODES")
+        A, B, C, D = '', '', '', ''
+    else:
+        if ',' in D:
+            D, _ = D.split(",", 1)
+
+    network.chanmodes = (set(A), set(B), set(C), set(D))
+
+
+def isupport_prefix(network, v, remove):
+    modes, literals = v.split(")", 1)
+    modes = modes[1:]
+    network.prefix_modes = modes
+    network.prefix_literals = literals
+
+
+def isupport_excepts(network, v, remove):
+    network.excepts_mode = v or "e"
+
+
+def isupport_modes(network, k, remove):
+    network.maxmodes = int(k)
+
+
+def isupport_targmax(network, v, remove):
+    for pair in v.split(","):
+        try:
+            cmd, number = pair.split(":")
+        except ValueError:
+            pass
+        else:
+            network.targmax[cmd.upper()] = int(number or -1)
+
+
+ISUPPORT = {
+    "CHANMODES": isupport_chanmodes,
+    "PREFIX": isupport_prefix,
+    "EXCEPTS": isupport_excepts,
+    "MODES": isupport_modes,
+    "TARGMAX": isupport_targmax,
+}
+
+
+# RPL_WELCOME
 async def numeric_001(network, msg):
     me = network.identity["nick"]
     modes = network.identity.get("modes")
@@ -17,33 +65,25 @@ async def numeric_001(network, msg):
 
 
 async def numeric_005(network, msg):
-    for arg in msg.args[1:]:
+    for arg in msg.args[1:-1]:
+        k, v = "", None
         try:
-            k, v = arg.split("=")
+            k, v = arg.split("=", 1)
         except ValueError:
-            if " " not in arg:
-                network.capabilities[arg] = None
+            k = arg
+
+        if k.startswith("-"):
+            remove = True
+            k = k[1:]
+            if k in network.capabilities:
+                network.capabilities.pop(k)
         else:
-            if k == "CHANMODES":
-                try:
-                    A, B, C, D = v.split(",", 3)
-                except ValueError:
-                    log.warning(f"!!! Network {network.name} is not declaring CHANMODES")
-                    A, B, C, D = '', '', '', ''
-                else:
-                    if ',' in D:
-                        D, _ = D.split(",", 1)
-
-                network.chanmodes = (set(A), set(B), set(C), set(D))
-            elif k == "PREFIX":
-                modes, literals = v.split(")", 1)
-                modes = modes[1:]
-                network.prefix_modes = modes
-                network.prefix_literals = literals
-            elif k == "EXCEPTS":
-                network.excepts_mode = v
-
+            remove = False
             network.capabilities[k] = v
+
+        f = ISUPPORT.get(k)
+        if f:
+            f(network, v, remove=remove)
 
 
 async def numeric_324(network, msg):
