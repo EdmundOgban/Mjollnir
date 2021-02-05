@@ -12,7 +12,7 @@ from .core.mixins import MessagePump, Network, IRCMsg
 from .core.drivers import trio_driver
 from .core.enums import MsgType
 from .plugins import dispatcher
-from . import vt100
+from . import vt100, identity
 
 locale.setlocale(locale.LC_ALL, '')
 logging.basicConfig(format="%(asctime)s %(levelname)8s %(message)s",
@@ -127,31 +127,10 @@ class Mjollnir:
 
 
 async def main():
-    identity = {
-        "nick"    : "Mjollnir",
-        "altnick" : "Mjollnir`",
-        "ident"   : "trio",
-        "network" : "Azzurra",
-        "servers" : [
-            ("allnight.azzurra.org", 9999, True, False),
-        ],
-        "realname": "Mjollnir",
-        "autojoin": [("#supybot", "mannaccia")], #, "#unity"],
-        "modes"   : "+ixws"
-    }
-
-    identity2 = identity.copy()
-    identity2["network"] = "EFNet"
-    identity2["servers"] = [
-        ("irc.efnet.nl", 6667, False, False)
-    ]
-    identity2["autojoin"] = [
-        "#mjollnir"
-    ]
-
     bot = Mjollnir()
-    bot.add_network(identity)
-    #bot.add_network(identity2)
+    bot.add_network(identity.identity)
+    bot.add_network(identity.identity2)
+
     await bot.run()
 
 
